@@ -1,0 +1,112 @@
+---
+title: "Data Wrangling"
+author: "M Lozada"
+date: "11/10/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+``` {r RData to CSV}
+#write.csv(PUF, file = "~/RStudio/Final Project/Facilities Data/facilities.csv")
+
+```
+
+```{r libraries and data}
+library(dplyr)
+library(tidyr)
+library(readr)
+library(geojsonio)
+library(htmltools)
+library(readr)
+library(leaflet)
+library(caret)
+library(rpart)
+library(rpart.plot)
+
+facilities_count <- read_csv("~/RStudio/Final Project/Facilities Data/facilities_final.csv")
+facilities_final <- read_csv("~/RStudio/Final Project/Facilities Data/final.csv")
+facilities <- read_csv("~/RStudio/Final Project/Facilities Data/facilities.csv")
+#no longer need this
+#facilities <- read_csv("~/RStudio/Final Project/Facilities Data/facilities.csv")
+```
+
+```{r important columns and renaming for easy use}
+facilities1 <- facilities %>% select("LST", "TREATPSYCHOTHRPY", "TREATELECTRO", "TREATMT", "MHEMGCY", "ALZHDEMENTIA", "SPECGRPEATING", "POSTTRAUM", "SRVC62", "SRVC113", "SIGNLANG":"LANG18", "CHILDAD":"SENIORS", "OWNERSHP")
+
+facilities2 <- rename(facilities1, "State" = "LST", "Psychotherapy" = "TREATPSYCHOTHRPY", "Electroconvulsive" = "TREATELECTRO", "Substance Abuse" = "TREATMT", "Emergency" = "MHEMGCY", "Alzheimer's or Dementia" = "ALZHDEMENTIA", "Eating Disorder" = "SPECGRPEATING", "PTSD" = "POSTTRAUM", "LGBT Service" = "SRVC62", "Veteran Service" = "SRVC113", "Sign Language" = "SIGNLANG", "Non-English Language" = "LANG", "Spanish" = "LANG16", "Hopi" = "LANG1", "Lakota" = "LANG2", "Navajo" = "LANG3", "Ojibwa" = "LANG21", "Yupik" = "LANG4", "Other Native Language" = "LANG5", "Arabic" = "LANG6", "Chinese" = "LANG7", "Creole" = "LANG8", "Farsi" = "LANG24", "French" = "LANG9", "German" = "LANG10", "Greek" = "LANG22", "Hebrew" = "LANG25", "Hindi" = "LANG26", "Hmong" = "LANG11", "Italian" = "LANG19", "Japanese" = "LANG23", "Korean" = "LANG12", "Polish" = "LANG13", "Portuguese" = "LANG14", "Russian" = "LANG15", "Tagalog" = "LANG20", "Vietnamese" = "LANG17", "Other Languages" = "LANG18", "<12" = "CHILDAD", "13-17" = "ADOLES", "18-25" = "YOUNGADULTS", "26-64" = "ADULT", ">65" = "SENIORS", "Ownership" = "OWNERSHP")
+
+#Getting rid of a couple extra variables
+facilities3 <- facilities2 %>% select(-matches("LANGPROV"), -matches("LANG_B"))
+
+#definitely not the best way to do this, but this is how I figured out how to do it
+test4 <- facilities3 %>% mutate(Psychotherapy = ifelse(Psychotherapy>0, replace(Psychotherapy, Psychotherapy>0,"Yes"), replace(Psychotherapy, Psychotherapy<1, "No"))) %>% 
+  mutate(Electroconvulsive = ifelse(Electroconvulsive>0, replace(Electroconvulsive, Electroconvulsive>0,"Yes"), replace(Electroconvulsive, Electroconvulsive<1, "No"))) %>%
+  mutate(`Substance Abuse` = ifelse(`Substance Abuse`>0, replace(`Substance Abuse`, `Substance Abuse`>0,"Yes"), replace(`Substance Abuse`, `Substance Abuse`<1, "No"))) %>% 
+  mutate(Emergency = ifelse(Emergency>0, replace(Emergency, Emergency>0,"Yes"), replace(Emergency, Emergency<1, "No"))) %>% 
+  mutate(`Alzheimer's or Dementia` = ifelse(`Alzheimer's or Dementia`>0, replace(`Alzheimer's or Dementia`, `Alzheimer's or Dementia`>0,"Yes"), replace(`Alzheimer's or Dementia`, `Alzheimer's or Dementia`<1, "No"))) %>% 
+  mutate(`Eating Disorder` = ifelse(`Eating Disorder`>0, replace(`Eating Disorder`, `Eating Disorder`>0,"Yes"), replace(`Eating Disorder`, `Eating Disorder`<1, "No"))) %>% 
+  mutate(PTSD = ifelse(PTSD>0, replace(PTSD, PTSD>0,"Yes"), replace(PTSD, PTSD<1, "No"))) %>% 
+  mutate(`LGBT Service` = ifelse(`LGBT Service`>0, replace(`LGBT Service`, `LGBT Service`>0,"Yes"), replace(`LGBT Service`, `LGBT Service`<1, "No"))) %>% 
+  mutate(`Veteran Service` = ifelse(`Veteran Service`>0, replace(`Veteran Service`, `Veteran Service`>0,"Yes"), replace(`Veteran Service`, `Veteran Service`<1, "No")))
+
+facilities_final <- test4 %>% select("State":"PTSD", "Ownership") %>% mutate(Ownership = ifelse(Ownership>2, replace(Ownership, Ownership>2,"Public"), ifelse(Ownership<2, replace(Ownership, Ownership<2, "Private For-Profit"), "Private Non-Profit")))
+
+#write.csv(facilities_final, file = "~/RStudio/Final Project/Facilities Data/final.csv")
+```
+
+```{r State Counts}
+facilities_group <- facilities_final %>% group_by(State)
+
+facilities_state_count <- count(facilities_group, State)
+facilities_state_count <- rename(facilities_state_count, Total = n)
+
+facilities_psycho_count <- count(facilities_group, Psychotherapy)
+facilities_psycho_count <- facilities_psycho_count[facilities_psycho_count$Psychotherapy != "No", ] %>% select("State", "n")
+facilities_psycho_count <- rename(facilities_psycho_count, Psychotherapy = n)
+
+facilities_electro_count <- count(facilities_group, Electroconvulsive)
+facilities_electro_count <- facilities_electro_count[facilities_electro_count$Electroconvulsive != "No", ] %>% select("State", "n")
+facilities_electro_count <- rename(facilities_electro_count, Electroconvulsive = n)
+
+facilities_sa_count <- count(facilities_group, `Substance Abuse`)
+facilities_sa_count <- facilities_sa_count[facilities_sa_count$`Substance Abuse` != "No", ] %>% select("State", "n")
+facilities_sa_count <- rename(facilities_sa_count, `Substance Abuse` = n)
+
+facilities_emerge_count <- count(facilities_group, Emergency)
+facilities_emerge_count <- facilities_emerge_count[facilities_emerge_count$Emergency != "No", ] %>% select("State", "n")
+facilities_emerge_count <- rename(facilities_emerge_count, Emergency = n)
+
+facilities_ad_count <- count(facilities_group, `Alzheimer's or Dementia`)
+facilities_ad_count <- facilities_ad_count[facilities_ad_count$`Alzheimer's or Dementia` != "No", ] %>% select("State", "n")
+facilities_ad_count <- rename(facilities_ad_count, `Alzheimer's or Dementia` = n)
+
+facilities_ed_count <- count(facilities_group, `Eating Disorder`)
+facilities_ed_count <- facilities_ed_count[facilities_ed_count$`Eating Disorder` != "No", ] %>% select("State", "n")
+facilities_ed_count <- rename(facilities_ed_count, `Eating Disorder` = n)
+
+facilities_ptsd_count <- count(facilities_group, PTSD)
+facilities_ptsd_count <- facilities_ptsd_count[facilities_ptsd_count$PTSD != "No", ] %>% select("State", "n")
+facilities_ptsd_count <- rename(facilities_ptsd_count, PTSD = n)
+
+
+facilities_own_count <- count(facilities_group, Ownership)
+facilities_own_count <- facilities_own_count %>% pivot_wider(names_from = Ownership, values_from = n)
+
+facilities2 <- left_join(facilities_state_count, facilities_psycho_count)
+facilities3 <- left_join(facilities2, facilities_electro_count)
+facilities4 <- left_join(facilities3, facilities_sa_count)
+facilities5 <- left_join(facilities4, facilities_emerge_count)
+facilities6 <- left_join(facilities5, facilities_ad_count)
+facilities7 <- left_join(facilities6, facilities_ed_count)
+facilities8 <- left_join(facilities7, facilities_ptsd_count)
+facilities_count <- left_join(facilities8, facilities_own_count)
+
+facilities_count <- mutate(facilities_count, Proportion = facilities_count$Total / facilities_count$Population * 100)
+facilities_count <- mutate(facilities_count, `People per Facility` = facilities_count$Population / facilities_count$Total)
+
+#Writing this into a final csv so I can ignore all that wrangling in the future
+#write.csv(facilities_count, file = "~/RStudio/Final Project/Facilities Data/facilities_final.csv")
+```

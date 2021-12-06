@@ -1,0 +1,92 @@
+---
+title: "Sophia Visualizations"
+author: "Michael Lozada and Sophia de los Reyes"
+date: "12/6/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r library}
+library(tidyverse)
+library(readr)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+```
+
+```{r ggplot}
+
+library(tidymodels)
+library(forcats)
+
+#write.csv(PUF_new, file = "~/RStudio/Final Project/Facilities Data/Sophia PUF_new.csv")
+PUF_new <- read_csv("~/RStudio/Final Project/Facilities Data/Sophia PUF_new.csv")
+
+
+test1 <- factor(PUF_new$treatment, level = c("Psychotherapy", "Substance Abuse", "PTSD", "Emergency", "Eating Disorder", "Alzheimer's or Dementia", "Electroconvulsive"))
+
+ggplot(PUF_new, aes(x = test1, fill = Availability)) + 
+  geom_bar() + 
+  labs(title = "Selected Treatments and their Availability in Facilities Across the US",
+       x = "Treatment",
+       y = "Frequency",
+       color = "Availability") +
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.60, hjust = 0.5)) 
+  
+ggplot(PUF_new, aes(x = test1, fill = Availability)) + 
+  geom_bar() + 
+  facet_grid(Ownership ~ .) +
+  labs(title = "Selected Treatments and their Availability in Facilities Across the US",
+       x = "Treatment",
+       y = "Frequency",
+       Legend = "Availability") +
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.60, hjust = 0.5))
+
+ggplot(PUF_new, aes(x = test1, fill = Availability)) + 
+  geom_bar(position = "fill") + 
+  facet_grid(Ownership ~ .) +
+  labs(title = "Selected Treatments and their Availability in Facilities Across the US",
+       x = "Treatment",
+       y = "Frequency (Percent)",
+       Legend = "Availability") +
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.60, hjust = 0.5))
+
+```
+
+```{r extra_ggplot}
+
+#write.csv(PUF_new_funds, file = "~/RStudio/Final Project/Facilities Data/Sohpia PUF_new_funds.csv")
+PUF_new_funds <- read_csv("~/RStudio/Final Project/Facilities Data/Sohpia PUF_new_funds.csv")
+
+test2 <- factor(PUF_new_funds$payment, level = c("Sliding Fee", "Treatment No or Minimal Pay", "Accepts Cash or Self-Payment", "Accepts Private Health Insurance", "Accepts Medicare", "Accepts Medicaid", "Accepts State-Financed Insurance", "Accepts State MH Agency Funds", "Accepts State Welfare", "Accepts State Juvenile Agency Funds", "Accepts State Education Agency Funds", "Accepts Other State Funds", "Accepts Local Government Funds", "Accepts Community Service Block Grants", "Accepts Community MH Block Grants", "Accepts Federal Military Insurance", "Accepts U.S. Dept. of Veterans Affairs", "Accepts IHS/Tribal/Urban Funds", "Accepts Other Sources"))
+
+ggplot(PUF_new_funds, aes(x = test2, fill = acceptance)) + 
+  geom_bar() + 
+  labs(title = "Payment Types and their Availability in Facilities Across the US",
+       x = "Payment",
+       y = "Frequency",
+       color = "Acceptance") +
+  theme(axis.text.x = element_text(angle = 90))
+  
+ggplot(PUF_new_funds, aes(x = test2, fill = acceptance)) + 
+  geom_bar() + 
+  facet_grid(Ownership ~ .) +
+  labs(title = "Payment Types and their Availability in Facilities with Various Ownership Across the US",
+       x = "Payment",
+       y = "Frequency",
+       Legend = "Acceptance") +
+  theme(axis.text.x = element_text(angle = 90))
+
+ggplot(PUF_new_funds, aes(x = test2, fill = acceptance)) + 
+  geom_bar(position = "fill") + 
+  facet_grid(Ownership ~ .) +
+  labs(title = "Payment Types and their Availability in Facilities with Various Ownership Across the US",
+       x = "Payment",
+       y = "Frequency",
+       Legend = "Acceptance") +
+  theme(axis.text.x = element_text(angle = 90))
+
+```

@@ -1,0 +1,62 @@
+---
+title: "Map Code"
+author: "M Lozada"
+date: "12/6/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r libraries and data}
+library(dplyr)
+library(tidyr)
+library(readr)
+library(geojsonio)
+library(htmltools)
+library(readr)
+library(leaflet)
+library(caret)
+library(rpart)
+library(rpart.plot)
+
+facilities_count <- read_csv("~/RStudio/Final Project/Facilities Data/facilities_final.csv")
+facilities_final <- read_csv("~/RStudio/Final Project/Facilities Data/final.csv")
+facilities <- read_csv("~/RStudio/Final Project/Facilities Data/facilities.csv")
+#no longer need this
+#facilities <- read_csv("~/RStudio/Final Project/Facilities Data/facilities.csv")
+```
+
+```{r Map Code (need dataset called facilities_count that has total counts for ecah category by state, proportional values, etc)}
+
+shapeurl <- "https://raw.githubusercontent.com/PublicaMundi/MappingAPI/master/data/geojson/us-states.json"
+UnitedStates <- geojson_read(shapeurl, what = "sp")
+
+myLabels <- paste("<strong>", UnitedStates$name, "</strong>", "<br/>", 
+                   "Total Number of Facilities: ", facilities_count$Total)
+myPopupsTreat <- paste("General Psychotherapy: ", facilities_count$Psychotherapy, "<br/>", "Electroconvulsion Therapy: ", facilities_count$Electroconvulsive, "<br/>", "Substance Abuse Therapy: ", facilities_count$`Substance Abuse`, "<br/>", "Emergency Services: ", facilities_count$Emergency, "<br/>", "Alzheimer's or Dementia Treatment: ", facilities_count$`Alzheimer's or Dementia`, "<br/>", "Eating Disorder Treatment: ", facilities_count$`Eating Disorder`, "<br/>", "PTSD Treatment: ", facilities_count$PTSD, "<br/>", "Private For-Profit: ", facilities_count$`Private For-Profit`, "<br/>", "Private Non-Profit: ", facilities_count$`Private Non-Profit`, "<br/>", "Public: ", facilities_count$Public)
+
+
+pal_prop <- colorBin("plasma", domain = facilities_count$Proportion)
+pal_total <- colorBin("plasma", domain = facilities_count$Total)
+
+Treatment_Map_2019 <- left_join(data.frame(Name = UnitedStates$name), facilities_count, by = c("Name" = "State"))
+Treatment_Map_2019 <- leaflet(UnitedStates) %>% addTiles() %>% 
+  addPolygons(
+    fillColor = pal_prop(facilities_count$Proportion), 
+    weight = 2,
+    opacity = 1,
+    color = "black",
+    fillOpacity = 0.7,
+    highlight = highlightOptions(weight = 3,
+                   color = "black",
+                   fillOpacity = 0.7,
+                   bringToFront = FALSE),
+    label = lapply(myLabels, HTML), 
+    popup = myPopupsTreat) %>% 
+  addLegend(pal = pal_prop, values = facilities_count$Proportion,
+            title = "Facilities to Population (%)", position = "bottomright")
+
+Treatment_Map_2019
+```

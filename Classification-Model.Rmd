@@ -1,0 +1,145 @@
+---
+title: "Classification Tree"
+author: "M Lozada"
+date: "12/1/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r libraries and data}
+library(dplyr)
+library(tidyr)
+library(readr)
+library(geojsonio)
+library(htmltools)
+library(readr)
+library(leaflet)
+library(caret)
+library(rpart)
+library(rpart.plot)
+library(openintro)
+library(tidymodels)
+library(rsample)
+library(rminer)
+
+facilities_count <- read_csv("~/RStudio/Final Project/Facilities Data/facilities_final.csv")
+facilities_final <- read_csv("~/RStudio/Final Project/Facilities Data/final.csv")
+facilities <- read_csv("~/RStudio/Final Project/Facilities Data/facilities.csv")
+#no longer need this
+#facilities <- read_csv("~/RStudio/Final Project/Facilities Data/facilities.csv")
+```
+
+```{r training}
+set.seed(1116)
+
+facilities_final1 <- facilities_final %>% mutate(Psychotherapy = as.factor(facilities_final$Psychotherapy)) %>% mutate(Electroconvulsive = as.factor(facilities_final$Electroconvulsive)) %>% mutate(`Substance Abuse` = as.factor(facilities_final$`Substance Abuse`)) %>% mutate(Emergency = as.factor(facilities_final$Emergency)) %>% mutate(`Alzheimer's or Dementia` = as.factor(facilities_final$`Alzheimer's or Dementia`)) %>% mutate(`Eating Disorder` = as.factor(facilities_final$`Eating Disorder`)) %>% mutate(PTSD = as.factor(facilities_final$PTSD)) %>% mutate(Ownership = as.factor(facilities_final$Ownership))
+#Check to see if factorizing worked
+head(facilities_final1)
+
+facilities_split <- initial_split(facilities_final1, prop = 0.80)
+
+train_data <- training(facilities_split)
+test_data <- testing(facilities_split)
+
+#Checking to see if still factored
+head(test_data)
+head(train_data)
+```
+
+```{r Map Code (need dataset called facilities_count that has total counts for ecah category by state, proportional values, etc)}
+
+shapeurl <- "https://raw.githubusercontent.com/PublicaMundi/MappingAPI/master/data/geojson/us-states.json"
+UnitedStates <- geojson_read(shapeurl, what = "sp")
+
+myLabels <- paste("<strong>", UnitedStates$name, "</strong>", "<br/>", 
+                   "Total Number of Facilities: ", facilities_count$Total)
+myPopupsTreat <- paste("General Psychotherapy: ", facilities_count$Psychotherapy, "<br/>", "Electroconvulsion Therapy: ", facilities_count$Electroconvulsive, "<br/>", "Substance Abuse Therapy: ", facilities_count$`Substance Abuse`, "<br/>", "Emergency Services: ", facilities_count$Emergency, "<br/>", "Alzheimer's or Dementia Treatment: ", facilities_count$`Alzheimer's or Dementia`, "<br/>", "Eating Disorder Treatment: ", facilities_count$`Eating Disorder`, "<br/>", "PTSD Treatment: ", facilities_count$PTSD, "<br/>", "Private For-Profit: ", facilities_count$`Private For-Profit`, "<br/>", "Private Non-Profit: ", facilities_count$`Private Non-Profit`, "<br/>", "Public: ", facilities_count$Public)
+
+
+pal_prop <- colorBin("plasma", domain = facilities_count$Proportion)
+pal_total <- colorBin("plasma", domain = facilities_count$Total)
+
+Treatment_Map_2019 <- left_join(data.frame(Name = UnitedStates$name), facilities_count, by = c("Name" = "State"))
+Treatment_Map_2019 <- leaflet(UnitedStates) %>% addTiles() %>% 
+  addPolygons(
+    fillColor = pal_prop(facilities_count$Proportion), 
+    weight = 2,
+    opacity = 1,
+    color = "black",
+    fillOpacity = 0.7,
+    highlight = highlightOptions(weight = 3,
+                   color = "black",
+                   fillOpacity = 0.7,
+                   bringToFront = FALSE),
+    label = lapply(myLabels, HTML), 
+    popup = myPopupsTreat) %>% 
+  addLegend(pal = pal_prop, values = facilities_count$Proportion,
+            title = "Facilities to Population (%)", position = "bottomright")
+
+Treatment_Map_2019
+```
+
+```{r model code}
+options(repr.plot.width = 6, repr.plot.height = 5)
+
+facilities_tree_train <- rpart(Ownership ~ Psychotherapy + Electroconvulsive + `Substance Abuse` + Emergency + `Alzheimer's or Dementia` + `Eating Disorder` + PTSD, cp = 0.001, maxdepth = 7, minbucket = 5, method = "class", data = train_data)
+
+
+prp(facilities_tree_train, type=1, extra=104, space = 4, split.cex = 1.5, nn.border.col = 1)
+
+```
+
+```{r test}
+
+fit.control <- trainControl(method = "repeatedcv", number = 5, repeats = 10)
+set.seed(1116)
+facilities_fit <- train(Ownership ~ Psychotherapy + Electroconvulsive + `Substance Abuse` + Emergency + `Alzheimer's or Dementia` + `Eating Disorder` + PTSD, data = train_data, method = "multinom", trControl = fit.control, trace = FALSE)
+
+facilities_fit
+
+predict_facilities <- predict(facilities_fit, newdata = test_data)
+str(predict_facilities)
+prob_facilities <- predict(facilities_fit, newdata = test_data, type = "prob")
+head(prob_facilities)
+
+confusionMatrix(data = predict_facilities, test_data$Ownership)
+
+```
+
+```{r confusion matrix}
+view(facilities_count)
+```
+
+```{r predict}
+
+confusionMatrix(data = predict_facilities, test_data$Ownership)
+
+```
+
+
+```{r full data tree}
+options(repr.plot.width = 6, repr.plot.height = 5)
+
+facilities_tree <- rpart(Ownership ~ Psychotherapy + Electroconvulsive + `Substance Abuse` + Emergency + `Alzheimer's or Dementia` + `Eating Disorder` + PTSD, cp = 0.001, maxdepth = 7, minbucket = 5, method = "class", data = facilities_final) %>% prune(facilities_tree, cp = .002)
+
+prp(facilities_tree, type=1, extra=104, space = 4, split.cex = 1.5, nn.border.col = 1)
+
+```
+
+```{r }
+facilities_print <- rpart(Ownership ~ Psychotherapy + Electroconvulsive + `Substance Abuse` + Emergency + `Alzheimer's or Dementia` + `Eating Disorder` + PTSD, method = "class", data = train_data)
+printcp(facilities_print)
+```
+
+```{r original}
+
+
+facilities_fit <- facilities_tree_train <- rpart(Ownership ~ Psychotherapy + Electroconvulsive + `Substance Abuse` + Emergency + `Alzheimer's or Dementia` + `Eating Disorder` + PTSD, cp = 0.001, maxdepth = 7, minbucket = 5, method = "class", data = train_data) %>% prune(facilities_tree_train, cp = .002) %>% 
+  fit(Ownership ~ Psychotherapy + Electroconvulsive + `Substance Abuse` + Emergency + `Alzheimer's or Dementia` + `Eating Disorder` + PTSD, data = train_data)
+
+predict(thingy, test_data)
+
+```
